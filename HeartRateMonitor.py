@@ -196,7 +196,7 @@ class HeartMonitorGUI:
 		#stores the current x value in the line to be updated (plot)
 		self.currX = 0
 		#the frequency that the arduino sends data over the serial line
-		self.transmitFreq = 50
+		self.transmitFreq = 40
 		#The length of the plot in seconds
 		self.repeatedTime = 15
 		
@@ -265,7 +265,7 @@ class HeartMonitorGUI:
 					#do this for both y1 and y2
 					for i in range(0,2):
 						#I think that this data is upside down from arduino?
-						self.y[self.currX] = 700-int(data[i])
+						self.y[self.currX] = int(data[i])
 						self.MOBD()
 						self.currX += 1 
 					
@@ -276,7 +276,7 @@ class HeartMonitorGUI:
 					if(self.bpm is True):
 						self.line.set_data(self.x,self.y)
 						self.ax.set_ylim([0,700])
-						#self.file.write(data[0] + "\n" + data[1] + "\n")
+						self.file.write(data[0] + "\n" + data[1] + "\n")
 					else:
 						self.line.set_data(self.x,self.MOBDY)
 						self.ax.set_ylim([0,self.threshhold])
@@ -309,7 +309,7 @@ class HeartMonitorGUI:
 	called by the begin button. Should tell the heart monitor to begin sending data
 	"""
 	def beginButton(self):
-		#self.file = open("output.txt","w")
+		self.file = open("output.txt","w")
 		if(self.hm.beginTrans() is True):
 			self.transmitting = True
 			self.labelString.set("Transmission Ongoing ")
@@ -331,7 +331,7 @@ class HeartMonitorGUI:
 	called by the stop button. Calls the heartMonitor stop tranmission function
 	"""
 	def stopButton(self):
-		#self.file.close()
+		self.file.close()
 		if(self.hm.stopTrans() is True):
 			self.transmitting = False
 			self.labelString.set(" Transmission Stopped ")
