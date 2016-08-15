@@ -3,7 +3,7 @@ import processing.serial.*;
 import static javax.swing.JOptionPane.*;
 
 static final int FPS = 100; //number of samples coming in per second
-static final int REPEAT_TIME = 15; //in seconds
+static final int REPEAT_TIME = 10; //in seconds
 
 
 Serial myPort;        // The serial port
@@ -26,7 +26,7 @@ void setup () {
   background(0xff);
   frameRate(FPS);
   
-  graph = new LineGraph(0,350,1500,400,1500,0, 700);
+  graph = new LineGraph(0,350,REPEAT_TIME*100,400,REPEAT_TIME*100,0, 700);
   
   //Choose the PORT
   String COMlist="",COMx = "";
