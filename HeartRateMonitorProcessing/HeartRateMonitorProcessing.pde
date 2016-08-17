@@ -3,7 +3,7 @@ import processing.serial.*;
 import static javax.swing.JOptionPane.*;
 
 static final int FPS = 100; //number of samples coming in per second
-static final int REPEAT_TIME = 10; //in seconds
+static final int REPEAT_TIME = 15; //in seconds
 
 
 Serial myPort;        // The serial port

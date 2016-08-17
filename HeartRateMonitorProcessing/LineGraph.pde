@@ -1,6 +1,6 @@
 
 static final int MOBD_THRESH = 250;
-static final int REFRACT_PERIOD = 100;
+static final int REFRACT_PERIOD = 30;
 
 /*
  * This class displays data in a line graph
@@ -14,8 +14,13 @@ class LineGraph{
   float MOBDx[];
   float MOBDy[];
   float MOBDz[];
+  int beatLoc[];
   int numBeats = 0;
   boolean showMOBD;
+  
+   float PEAKI = 0,
+        SPKI = 400,
+        NPKI = 0;
   
   float THRESH1 = 0,
         THRESH2 = 0;
@@ -30,6 +35,7 @@ class LineGraph{
     MOBDy = new float[size];
     MOBDz = new float[size];
     
+    beatLoc = new int[400]; //shouldn't get anywhere close to 400 beats
     this.yMin = yMin;
     this.yMax = yMax;
     showMOBD = false;
@@ -107,76 +113,128 @@ class LineGraph{
   }
   
   void panThompkins(){
-    
-   for(int i = 0; i < yData.length; i++){
-     MOBDx[i] = yData[i] - yData[(i-1+yData.length)% yData.length];
-     MOBDy[i] = MOBDx[i]*MOBDx[i];
-   }
+
    
+   MOBDx[currX] = yData[currX] - yData[(currX-1+yData.length)% yData.length];
+   MOBDx[currX] *= MOBDx[currX];
+   
+
+  //moving average
    int n = 20;
+   MOBDz[currX] = 0;
+   for(int j = n; j > 0; j--){
+       MOBDz[currX] += MOBDx[(currX-j+yData.length) % yData.length]; 
+    }
+    MOBDz[currX]=MOBDz[currX]/n;
    
-   float PEAKI = 0,
-         SPKI = 400,
-         NPKI = 0;
-         
    
-   for(int i = 0;i < yData.length; i++){
-     MOBDz[i] = MOBDy[i];
+   //find the peak and threasholds based off the past 200 samples
+   SPKI = 400;
+   for(int i = 0; i < 200; i++){
+     PEAKI = 0;
+    for(int j = n; j >= 0; j--){
+        if(MOBDz[(currX-i+yData.length) % yData.length] > PEAKI)
+          PEAKI = MOBDz[(currX-i+yData.length) % yData.length];
+    }
+     //PEAKI /= n;
      
-     for(int j = n; j > 0; j--){
-        MOBDz[i] += MOBDy[(i-j+yData.length)% yData.length]; 
-        if(MOBDz[i] > PEAKI)
-          PEAKI = MOBDz[i];
-     }
-     PEAKI/=n;
-     if(PEAKI > THRESH1)
+    if(PEAKI > THRESH1){
        SPKI = 0.125*PEAKI + 0.875*SPKI;
+    }
+    //else if(PEAKI > THRESH2){
+    //  SPKI = 0.25*PEAKI + 0.75*SPKI;
+    //}
      else
        NPKI = 0.125*PEAKI + 0.875*NPKI;
-       
-     THRESH1 = NPKI + 0.25*(SPKI-NPKI);
-     THRESH2 = 0.5*THRESH1;
-     
-     MOBDz[i] = map(MOBDz[i]/n, 0, 900,0, 700);
-     //MOBDx[i] = MOBDz[i] - MOBDz[(i-1+yData.length)% yData.length];
-     //MOBDx[i] = map(MOBDx[i]/n, 0, 900,0, 700);
-     
+      
    }
    
-   
-   //for(int i = 0; i < yData.length; i++){
-   //  MOBDx[i] = MOBDz[i] - MOBDz[(i-1+yData.length)% yData.length];
-   //}
-   
-   numBeats = 0;
-   boolean flag = false;
-    for (int i =0; i<yData.length;i++){
-     //refractCount = refractCount >0 ? refractCount -1 :  0;
-     if(MOBDz[i] > THRESH1 && !flag){
+   //System.out.print(THRESH1 + " ");
+   //System.out.println(PEAKI);
+         
+     THRESH1 = NPKI + 0.5*(SPKI-NPKI);
+     THRESH2 = 0.75*THRESH1;
+     
+   float t1=0,
+       t2=0;
        
-       flag = true;
-       numBeats++;
-     }else if (MOBDz[i] < THRESH2){
-       flag = false;
-     }
-    }
+   numBeats = 0;
+   boolean QRSFound;
+   
+   for(int i = 0; i < beatLoc.length;i++)
+     beatLoc[i]=0;
+   int c = 0;
+   int refract = 0;
+   
+   //Detection algorithm (based off Pan Thompkins)
+    for(int i = 0; i < yData.length;i+= 100){
+      QRSFound = false;
+      for(int j =0; j < 100; j++){
+        t2 = t1;
+        t1 = MOBDz[(i+j+yData.length) % yData.length];
+        if(t2 < THRESH1 && t1 > THRESH1 && refract == 0){
+          numBeats++;
+          beatLoc[c++] = i+j;
+          QRSFound = true;
+          refract = REFRACT_PERIOD; //There can't be two heart beats very close to eachother, so we make a refract period.
+        }
+        refract = refract ==0? refract: refract -1;
+      }
+      if(!QRSFound){
+       for(int j =0; j < 100; j++){
+         t2 = t1;
+         t1 = MOBDz[(i+j+yData.length) % yData.length];
+         if(t2 < THRESH2 && t1 > THRESH2 && refract == 0){
+           numBeats++;
+           beatLoc[c++] = i+j;
+           QRSFound = true;
+           refract = REFRACT_PERIOD;
+         }
+         refract = refract ==0? refract: refract -1;
+       }
+      }
+   }
+   
+   for (int i = 0; i < beatLoc.length; i++){
+     
+   }
+     
    
   }
   
   void draw(){
-    line(x,y,x+xLength,y);
+    //Show some of the lines
+    //line(x,y,x+xLength,y);
+    //line(x,y-THRESH1,x+xLength,y-THRESH1);
+    //line(x,y-THRESH2,x+xLength,y-THRESH2);
     
-    line(x,y-THRESH1,x+xLength,y-THRESH1);
-    line(x,y-THRESH2,x+xLength,y-THRESH2);
-    if(!showMOBD){    
-      for(int i=0; i< yData.length-1; ++i){
-        line(x+(xLength/yData.length)*i,y - map(yData[i],yMin,yMax,0,yLength), x+(xLength/yData.length)*(i+1),y - map(yData[i+1],yMin,yMax,0,yLength));
-      }
-    }else{
-      for(int i=0; i< yData.length-1; ++i){
-        line(x+(xLength/yData.length)*i,y - map(MOBDz[i],yMin,yMax,0,yLength), x+(xLength/yData.length)*(i+1),y - map(MOBDz[i+1],yMin,yMax,0,yLength));
-      }
+    //line(x+currX-100, 0,x+currX-100, height);
+    fill(0, 102, 153, 20);
+    for(int i = 0; i < beatLoc.length;i++){
+      if(beatLoc[i]==0) continue;
+      rect(x+beatLoc[i]-8,y,16,-yLength+100);
     }
+    
+    //if(!showMOBD){    
+    //  for(int i=0; i< yData.length-1; ++i){
+    //    line(x+(xLength/yData.length)*i,y - map(yData[i],yMin,yMax,0,yLength), x+(xLength/yData.length)*(i+1),y - map(yData[i+1],yMin,yMax,0,yLength));
+    //  }
+    //}else{
+    //  for(int i=0; i< yData.length-1; ++i){
+    //    line(x+(xLength/yData.length)*i,y - map(MOBDz[i],yMin,yMax,0,yLength), x+(xLength/yData.length)*(i+1),y - map(MOBDz[i+1],yMin,yMax,0,yLength));
+    //  }
+    //}
+    
+    if(!showMOBD){    
+     for(int i=0; i< yData.length-1; ++i){
+       line(x+(xLength/yData.length)*i,y - map(yData[i],yMin,yMax,0,yLength), x+(xLength/yData.length)*(i+1),y - map(yData[i+1],yMin,yMax,0,yLength));
+     }
+    }else{
+     for(int i=0; i< yData.length-1; ++i){
+       line(x+(xLength/yData.length)*i,y - MOBDz[i], x+(xLength/yData.length)*(i+1),y - MOBDz[i+1]);
+     }
+    }
+    
     
   }
   
